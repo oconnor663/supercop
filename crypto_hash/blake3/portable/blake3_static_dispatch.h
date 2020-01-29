@@ -1,0 +1,3 @@
+#define SIMD_DEGREE 1
+#define blake3_compress_in_place blake3_compress_in_place_portable
+#define blake3_hash_many blake3_hash_many_portable

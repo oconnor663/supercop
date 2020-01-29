@@ -5,16 +5,11 @@
 #include "blake3.h"
 #include "blake3_impl.h"
 
-// hardcoded dispatch
-#define PORTABLE_SIMD_DEGREE 1
-void blake3_compress_in_place_portable(uint32_t cv[8],
-                              const uint8_t block[BLAKE3_BLOCK_LEN],
-                              uint8_t block_len, uint64_t counter,
-                              uint8_t flags);
-void blake3_hash_many_portable(const uint8_t *const *inputs, size_t num_inputs,
-                      size_t blocks, const uint32_t key[8], uint64_t counter,
-                      bool increment_counter, uint8_t flags,
-                      uint8_t flags_start, uint8_t flags_end, uint8_t *out);
+// The idea here is that this file can be copied verbatim for all the different
+// SUPERCOP platform directories, along with different platform-specific
+// implementation files also included verbatim from github.com/BLAKE3-team/BLAKE3,
+// and only this one header file needs to be changed in each directory.
+#include "blake3_static_dispatch.h"
 
 // all-at-once chunk hashing
 INLINE void hash_chunk(const uint8_t *chunk, size_t chunk_len, const uint32_t key[8],
@@ -24,7 +19,7 @@ INLINE void hash_chunk(const uint8_t *chunk, size_t chunk_len, const uint32_t ke
   uint8_t block_flags = flags | CHUNK_START;
   // Compress all the blocks prior to the last one.
   while (chunk_len > BLAKE3_BLOCK_LEN) {
-    blake3_compress_in_place_portable(cv, chunk, BLAKE3_BLOCK_LEN, chunk_counter, block_flags);
+    blake3_compress_in_place(cv, chunk, BLAKE3_BLOCK_LEN, chunk_counter, block_flags);
     chunk += BLAKE3_BLOCK_LEN;
     chunk_len -= BLAKE3_BLOCK_LEN;
     block_flags = flags;
@@ -44,7 +39,7 @@ INLINE void hash_chunk(const uint8_t *chunk, size_t chunk_len, const uint32_t ke
   if (is_root) {
       block_flags |= ROOT;
   }
-  blake3_compress_in_place_portable(cv, last_block_ptr, chunk_len, chunk_counter, block_flags);
+  blake3_compress_in_place(cv, last_block_ptr, chunk_len, chunk_counter, block_flags);
   memcpy(out, cv, BLAKE3_OUT_LEN);
 }
 
@@ -80,7 +75,7 @@ INLINE size_t compress_chunks_parallel(const uint8_t *input, size_t input_len,
     chunks_array_len += 1;
   }
 
-  blake3_hash_many_portable(chunks_array, chunks_array_len,
+  blake3_hash_many(chunks_array, chunks_array_len,
                    BLAKE3_CHUNK_LEN / BLAKE3_BLOCK_LEN, key, chunk_counter,
                    true, flags, CHUNK_START, CHUNK_END, out);
 
@@ -117,7 +112,7 @@ INLINE size_t compress_parents_parallel(const uint8_t *child_chaining_values,
     parents_array_len += 1;
   }
 
-  blake3_hash_many_portable(parents_array, parents_array_len, 1, key,
+  blake3_hash_many(parents_array, parents_array_len, 1, key,
                    0, // Parents always use counter 0.
                    false, flags | PARENT,
                    0, // Parents have no start flags.
@@ -160,7 +155,7 @@ size_t blake3_compress_subtree_wide(const uint8_t *input, size_t input_len,
   // when it is 1. If this implementation adds multi-threading in the future,
   // this gives us the option of multi-threading even the 2-chunk case, which
   // can help performance on smaller platforms.
-  if (input_len <= PORTABLE_SIMD_DEGREE * BLAKE3_CHUNK_LEN) {
+  if (input_len <= SIMD_DEGREE * BLAKE3_CHUNK_LEN) {
     return compress_chunks_parallel(input, input_len, key, chunk_counter, flags,
                                     out);
   }
@@ -179,7 +174,7 @@ size_t blake3_compress_subtree_wide(const uint8_t *input, size_t input_len,
   // account for the special case of returning 2 outputs when the SIMD degree
   // is 1.
   uint8_t cv_array[2 * MAX_SIMD_DEGREE_OR_2 * BLAKE3_OUT_LEN];
-  size_t degree = PORTABLE_SIMD_DEGREE;
+  size_t degree = SIMD_DEGREE;
   if (left_input_len > BLAKE3_CHUNK_LEN && degree == 1) {
     // The special case: We always use a degree of at least two, to make
     // sure there are two outputs. Except, as noted above, at the chunk
@@ -253,6 +248,6 @@ void blake3_default_hash(const uint8_t *input, size_t input_len, uint8_t output[
   compress_subtree_to_parent_node(input, input_len, IV, 0, 0, root_node);
   uint32_t cv[8];
   memcpy(cv, IV, BLAKE3_OUT_LEN);
-  blake3_compress_in_place_portable(cv, root_node, BLAKE3_BLOCK_LEN, 0, PARENT | ROOT);
+  blake3_compress_in_place(cv, root_node, BLAKE3_BLOCK_LEN, 0, PARENT | ROOT);
   memcpy(output, cv, BLAKE3_OUT_LEN);
 }
