@@ -82,8 +82,9 @@ INLINE size_t compress_chunks_parallel(const uint8_t *input, size_t input_len,
   // Hash the remaining partial chunk, if there is one. Note that the empty
   // chunk (meaning the empty message) is a different codepath.
   if (input_len > input_position) {
+    uint64_t counter = chunk_counter + (uint64_t)chunks_array_len;
     hash_chunk(&input[input_position], input_len - input_position, key,
-               chunk_counter, flags, false, &out[chunks_array_len * BLAKE3_OUT_LEN]);
+               counter, flags, false, &out[chunks_array_len * BLAKE3_OUT_LEN]);
     return chunks_array_len + 1;
   } else {
     return chunks_array_len;
