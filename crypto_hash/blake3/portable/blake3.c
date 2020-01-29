@@ -5,6 +5,21 @@
 #include "blake3.h"
 #include "blake3_impl.h"
 
+// hardcoded dispatch
+#define PORTABLE_SIMD_DEGREE 1
+void blake3_compress_in_place_portable(uint32_t cv[8],
+                              const uint8_t block[BLAKE3_BLOCK_LEN],
+                              uint8_t block_len, uint64_t counter,
+                              uint8_t flags);
+void blake3_compress_xof_portable(const uint32_t cv[8],
+                         const uint8_t block[BLAKE3_BLOCK_LEN],
+                         uint8_t block_len, uint64_t counter, uint8_t flags,
+                         uint8_t out[64]);
+void blake3_hash_many_portable(const uint8_t *const *inputs, size_t num_inputs,
+                      size_t blocks, const uint32_t key[8], uint64_t counter,
+                      bool increment_counter, uint8_t flags,
+                      uint8_t flags_start, uint8_t flags_end, uint8_t *out);
+
 INLINE void chunk_state_init(blake3_chunk_state *self, const uint32_t key[8],
                              uint8_t flags) {
   memcpy(self->cv, key, BLAKE3_KEY_LEN);
@@ -79,7 +94,7 @@ INLINE output_t make_output(const uint32_t input_cv[8],
 INLINE void output_chaining_value(const output_t *self, uint8_t cv[32]) {
   uint32_t cv_words[8];
   memcpy(cv_words, self->input_cv, 32);
-  blake3_compress_in_place(cv_words, self->block, self->block_len,
+  blake3_compress_in_place_portable(cv_words, self->block, self->block_len,
                            self->counter, self->flags);
   memcpy(cv, cv_words, 32);
 }
@@ -89,7 +104,7 @@ INLINE void output_root_bytes(const output_t *self, uint8_t *out,
   uint64_t output_block_counter = 0;
   uint8_t wide_buf[64];
   while (out_len > 0) {
-    blake3_compress_xof(self->input_cv, self->block, self->block_len,
+    blake3_compress_xof_portable(self->input_cv, self->block, self->block_len,
                         output_block_counter, self->flags | ROOT, wide_buf);
     size_t memcpy_len;
     if (out_len > 64) {
@@ -111,7 +126,7 @@ INLINE void chunk_state_update(blake3_chunk_state *self, const uint8_t *input,
     input += take;
     input_len -= take;
     if (input_len > 0) {
-      blake3_compress_in_place(
+      blake3_compress_in_place_portable(
           self->cv, self->buf, BLAKE3_BLOCK_LEN, self->chunk_counter,
           self->flags | chunk_state_maybe_start_flag(self));
       self->blocks_compressed += 1;
@@ -121,7 +136,7 @@ INLINE void chunk_state_update(blake3_chunk_state *self, const uint8_t *input,
   }
 
   while (input_len > BLAKE3_BLOCK_LEN) {
-    blake3_compress_in_place(self->cv, input, BLAKE3_BLOCK_LEN,
+    blake3_compress_in_place_portable(self->cv, input, BLAKE3_BLOCK_LEN,
                              self->chunk_counter,
                              self->flags | chunk_state_maybe_start_flag(self));
     self->blocks_compressed += 1;
@@ -178,7 +193,7 @@ INLINE size_t compress_chunks_parallel(const uint8_t *input, size_t input_len,
     chunks_array_len += 1;
   }
 
-  blake3_hash_many(chunks_array, chunks_array_len,
+  blake3_hash_many_portable(chunks_array, chunks_array_len,
                    BLAKE3_CHUNK_LEN / BLAKE3_BLOCK_LEN, key, chunk_counter,
                    true, flags, CHUNK_START, CHUNK_END, out);
 
@@ -221,7 +236,7 @@ INLINE size_t compress_parents_parallel(const uint8_t *child_chaining_values,
     parents_array_len += 1;
   }
 
-  blake3_hash_many(parents_array, parents_array_len, 1, key,
+  blake3_hash_many_portable(parents_array, parents_array_len, 1, key,
                    0, // Parents always use counter 0.
                    false, flags | PARENT,
                    0, // Parents have no start flags.
@@ -264,7 +279,7 @@ size_t blake3_compress_subtree_wide(const uint8_t *input, size_t input_len,
   // when it is 1. If this implementation adds multi-threading in the future,
   // this gives us the option of multi-threading even the 2-chunk case, which
   // can help performance on smaller platforms.
-  if (input_len <= blake3_simd_degree() * BLAKE3_CHUNK_LEN) {
+  if (input_len <= PORTABLE_SIMD_DEGREE * BLAKE3_CHUNK_LEN) {
     return compress_chunks_parallel(input, input_len, key, chunk_counter, flags,
                                     out);
   }
@@ -283,7 +298,7 @@ size_t blake3_compress_subtree_wide(const uint8_t *input, size_t input_len,
   // account for the special case of returning 2 outputs when the SIMD degree
   // is 1.
   uint8_t cv_array[2 * MAX_SIMD_DEGREE_OR_2 * BLAKE3_OUT_LEN];
-  size_t degree = blake3_simd_degree();
+  size_t degree = PORTABLE_SIMD_DEGREE;
   if (left_input_len > BLAKE3_CHUNK_LEN && degree == 1) {
     // The special case: We always use a degree of at least two, to make
     // sure there are two outputs. Except, as noted above, at the chunk
