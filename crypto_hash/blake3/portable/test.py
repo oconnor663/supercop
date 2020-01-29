@@ -94,7 +94,7 @@ def main():
             shutil.copy(filepath, tempdir)
             if filepath.suffix == ".c":
                 c_files.append(filepath.name)
-    cmd = ["gcc", "-O3", "-o", "blake3.exe", "main.c"]
+    cmd = ["gcc", "-O3", "-march=native", "-o", "blake3.exe", "main.c"]
     cmd += c_files
     print(" ".join(cmd))
     subprocess.run(cmd, check=True, cwd=tempdir)
