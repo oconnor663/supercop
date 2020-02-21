@@ -53,7 +53,7 @@ def main():
     for filepath in HERE.iterdir():
         if filepath.name.startswith("blake3"):
             shutil.copy(filepath, tempdir)
-            if filepath.suffix == ".c":
+            if filepath.suffix in (".c", ".S"):
                 c_files.append(filepath.name)
     cmd = ["gcc", "-O3", "-march=native", "-o", "blake3.exe", "main.c"]
     cmd += c_files
