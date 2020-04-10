@@ -50,9 +50,9 @@ print('  uint32 r2;')
 
 def access(reading,pos):
   if reading == 'R0' and div3:
-    return '((%s[%s]%+d)*10923)>>15' % (reading,pos,offset)
-  if reading == 'R0' and offset != 0:
-    return '%s[%s]%+d' % (reading,pos,offset)
+    return '(((%s[%s]%+d)&16383)*10923)>>15' % (reading,pos,offset)
+  if reading == 'R0':
+    return '(%s[%s]%+d)&16383' % (reading,pos,offset)
   return '%s[%s]' % (reading,pos)
 
 def printloop(looplen,reading,todo,m0,bytes):

@@ -190,16 +190,6 @@ static void Hide(unsigned char *c,unsigned char *r_enc,const Inputs r,const unsi
   }
 }
 
-/* 0 if matching ciphertext+confirm, else -1 */
-static int Ciphertexts_diff_mask(const unsigned char *c,const unsigned char *c2)
-{
-  uint16 differentbits = 0;
-  int len = Ciphertexts_bytes+Confirm_bytes;
-
-  while (len-- > 0) differentbits |= (*c++)^(*c2++);
-  return (1&((differentbits-1)>>8))-1;
-}
-
 #include "crypto_kem.h"
 
 int crypto_kem_keypair(unsigned char *pk,unsigned char *sk)
@@ -279,7 +269,7 @@ int crypto_kem_dec(unsigned char *k,const unsigned char *c,const unsigned char *
     int mask;
     unsigned char x[1+Inputs_bytes+Ciphertexts_bytes+Confirm_bytes];
     Hide(cnew,x,r,pk,cache);
-    mask = Ciphertexts_diff_mask(c,cnew);
+    mask = crypto_verify_clen(c,cnew);
     for (i = 0;i < Inputs_bytes;++i) x[1+i] ^= mask&(x[1+i]^rho[i]);
     for (i = 0;i < Ciphertexts_bytes+Confirm_bytes;++i) x[1+Inputs_bytes+i] = c[i];
     x[0] = 1+mask;

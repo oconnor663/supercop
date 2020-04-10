@@ -16,6 +16,9 @@
 #define q27 25976 /* round(2^27/q) */
 #define q31 415615 /* floor(2^31/q) */
 
+#include "crypto_verify_1312.h"
+#define crypto_verify_clen crypto_verify_1312
+
 #include "crypto_decode_857x1723.h"
 #define Rounded_bytes crypto_decode_857x1723_STRBYTES
 #define Rounded_decode crypto_decode_857x1723

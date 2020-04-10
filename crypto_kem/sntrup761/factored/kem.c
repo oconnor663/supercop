@@ -15,59 +15,22 @@
 #define uint16 crypto_uint16
 #define uint32 crypto_uint32
 
-/* ----- masks */
-
-/* return -1 if x!=0; else return 0 */
-static int int16_nonzero_mask(int16 x)
-{
-  uint16 u = x; /* 0, else 1...65535 */
-  uint32 v = u; /* 0, else 1...65535 */
-  v = -v; /* 0, else 2^32-65535...2^32-1 */
-  v >>= 31; /* 0, else 1 */
-  return -v; /* 0, else -1 */
-}
-
 /* ----- arithmetic mod 3 */
 
 typedef int8 small;
 /* F3 is always represented as -1,0,1 */
-
-/* works for -16384 <= x < 16384 */
-static small F3_freeze(int16 x)
-{
-  return x-3*((10923*x+16384)>>15);
-}
 
 /* ----- arithmetic mod q */
 
 typedef int16 Fq;
 /* always represented as -(q-1)/2...(q-1)/2 */
 
-/* works for -14000000 < x < 14000000 if q in 4591, 4621, 5167 */
-static Fq Fq_freeze(int32 x)
-{
-  x -= q*((q18*x)>>18);
-  x -= q*((q27*x+67108864)>>27);
-  return x;
-}
-
 /* ----- small polynomials */
-
-/* 0 if Weightw_is(r), else -1 */
-static int Weightw_mask(small *r)
-{
-  int weight = 0;
-  int i;
-
-  for (i = 0;i < p;++i) weight += r[i]&1;
-  return int16_nonzero_mask(weight-w);
-}
 
 /* R3_fromR(R_fromRq(r)) */
 static void R3_fromRq(small *out,const Fq *r)
 {
-  int i;
-  for (i = 0;i < p;++i) out[i] = F3_freeze(r[i]);
+  crypto_encode_pxfreeze3((unsigned char *) out,(unsigned char *) r);
 }
 
 /* h = f*g in the ring R3 */
@@ -89,9 +52,9 @@ static void Rq_mult_small(Fq *h,const small *g)
 /* h = 3f in Rq */
 static void Rq_mult3(Fq *h,const Fq *f)
 {
-  int i;
-  
-  for (i = 0;i < p;++i) h[i] = Fq_freeze(3*f[i]);
+  crypto_encode_pxint16((unsigned char *) h,f);
+  crypto_core_scale3((unsigned char *) h,(const unsigned char *) h,0,0);
+  crypto_decode_pxint16(h,(const unsigned char *) h);
 }
 
 /* out = 1/(3*in) in Rq */
@@ -167,16 +130,6 @@ static void Hide(unsigned char *x,unsigned char *c,unsigned char *r_enc,const In
   for (i = 0;i < Hash_bytes;++i) x[1+Hash_bytes+i] = cache[i];
   x[0] = 2;
   Hash(c+Ciphertexts_bytes,x,1+Hash_bytes*2);
-}
-
-/* 0 if matching ciphertext+confirm, else -1 */
-static int Ciphertexts_diff_mask(const unsigned char *c,const unsigned char *c2)
-{
-  uint16 differentbits = 0;
-  int len = Ciphertexts_bytes+Confirm_bytes;
-
-  while (len-- > 0) differentbits |= (*c++)^(*c2++);
-  return (1&((differentbits-1)>>8))-1;
 }
 
 #include "crypto_kem.h"
@@ -266,9 +219,7 @@ int crypto_kem_dec(unsigned char *k,const unsigned char *c,const unsigned char *
       Small_decode(v,sk+Small_bytes);
       R3_mult(r,e,v);
     }
-    mask = Weightw_mask(r); /* 0 if weight w, else -1 */
-    for (i = 0;i < w;++i) r[i] = ((r[i]^1)&~mask)^1;
-    for (i = w;i < p;++i) r[i] = r[i]&~mask;
+    crypto_core_wforce((unsigned char *) r,(unsigned char *) r,0,0);
   }
   {
     unsigned char r_enc[1+Small_bytes];
@@ -277,7 +228,7 @@ int crypto_kem_dec(unsigned char *k,const unsigned char *c,const unsigned char *
     /* XXX: can use incremental hashing to reduce x size */
 
     Hide(x,cnew,r_enc,r,pk,cache);
-    mask = Ciphertexts_diff_mask(c,cnew);
+    mask = crypto_verify_clen(c,cnew);
     for (i = 0;i < Small_bytes;++i) r_enc[i+1] ^= mask&(r_enc[i+1]^rho[i]);
     Hash(x+1,r_enc,1+Small_bytes); /* XXX: can instead do cmov on cached hash of rho */
     for (i = 0;i < Ciphertexts_bytes+Confirm_bytes;++i) x[1+Hash_bytes+i] = c[i];
