@@ -10,95 +10,54 @@
 
 #include "picnic_instances.h"
 
-// Prefix values for domain separation
-const uint8_t HASH_PREFIX_0 = 0;
-const uint8_t HASH_PREFIX_1 = 1;
-const uint8_t HASH_PREFIX_2 = 2;
-const uint8_t HASH_PREFIX_3 = 3;
-const uint8_t HASH_PREFIX_4 = 4;
-const uint8_t HASH_PREFIX_5 = 5;
-
 // instance handling
 
-// L1, L3, and L5 LowMC instances
+// L1, L3, and L5 instances with partial Sbox layer
 #include "lowmc_128_128_20.h"
-#define LOWMC_L1_OR_NULL &lowmc_128_128_20
-#define LOWMC_L3_OR_NULL NULL
-#define LOWMC_L5_OR_NULL NULL
+#define lowmc_parameters_192_192_30                                                                \
+  { 0, 0, 0 }
+#define lowmc_parameters_256_256_38                                                                \
+  { 0, 0, 0 }
 
-// L1, L3, and L5 lowmc instances with 1 SBOX
-#define LOWMC_L1_1_OR_NULL NULL
-#define LOWMC_L3_1_OR_NULL NULL
-#define LOWMC_L5_1_OR_NULL NULL
+// L1, L3, and L5 instances with full Sbox layer
+#define lowmc_parameters_129_129_4                                                                 \
+  { 0, 0, 0 }
+#define lowmc_parameters_192_192_4                                                                 \
+  { 0, 0, 0 }
+#define lowmc_parameters_255_255_4                                                                 \
+  { 0, 0, 0 }
 
-#define ENABLE_ZKBPP(x) x
+#define PARAMETER_SET_ZKBPP(params, digest_size, seed_size, num_rounds, input_output_size,         \
+                            view_size)                                                             \
+  { params, num_rounds, digest_size, seed_size, input_output_size, view_size, 0, 0 }
 
-#define ENABLE_KKW(x) NULL
+#define PARAMETER_SET_KKW(params, digest_size, seed_size, num_rounds, num_opened_rounds,           \
+                          num_MPC_parties, input_output_size, view_size)                           \
+  { {0, 0, 0}, 0, 0, 0, 0, 0, 0, 0 }
 
-#define NULL_FNS                                                                                   \
-  { NULL, NULL, NULL, NULL, NULL }
 
-static picnic_instance_t instances[PARAMETER_SET_MAX_INDEX] = {
-    {NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, PARAMETER_SET_INVALID, TRANSFORM_FS, NULL_FNS},
-    {ENABLE_ZKBPP(LOWMC_L1_OR_NULL), 32, 16, 219, 219, 3, 16, 16, 75, 30, 55, 0, 0,
-     PICNIC_SIGNATURE_SIZE_Picnic_L1_FS, Picnic_L1_FS, TRANSFORM_FS, NULL_FNS},
-    {ENABLE_ZKBPP(LOWMC_L1_OR_NULL), 32, 16, 219, 219, 3, 16, 16, 75, 30, 55, 91, 107,
-     PICNIC_SIGNATURE_SIZE_Picnic_L1_UR, Picnic_L1_UR, TRANSFORM_UR, NULL_FNS},
-    {ENABLE_ZKBPP(LOWMC_L3_OR_NULL), 48, 24, 329, 329, 3, 24, 24, 113, 30, 83, 0, 0,
-     PICNIC_SIGNATURE_SIZE_Picnic_L3_FS, Picnic_L3_FS, TRANSFORM_FS, NULL_FNS},
-    {ENABLE_ZKBPP(LOWMC_L3_OR_NULL), 48, 24, 329, 329, 3, 24, 24, 113, 30, 83, 137, 161,
-     PICNIC_SIGNATURE_SIZE_Picnic_L3_UR, Picnic_L3_UR, TRANSFORM_UR, NULL_FNS},
-    {ENABLE_ZKBPP(LOWMC_L5_OR_NULL), 64, 32, 438, 438, 3, 32, 32, 143, 30, 110, 0, 0,
-     PICNIC_SIGNATURE_SIZE_Picnic_L5_FS, Picnic_L5_FS, TRANSFORM_FS, NULL_FNS},
-    {ENABLE_ZKBPP(LOWMC_L5_OR_NULL), 64, 32, 438, 438, 3, 32, 32, 143, 30, 110, 175, 207,
-     PICNIC_SIGNATURE_SIZE_Picnic_L5_UR, Picnic_L5_UR, TRANSFORM_UR, NULL_FNS},
-    // Picnic2 params
-    {ENABLE_KKW(LOWMC_L1_OR_NULL), 32, 16, 343, 27, 64, 16, 16, 75, 30, 55, 0, 0,
-     PICNIC_SIGNATURE_SIZE_Picnic2_L1_FS, Picnic2_L1_FS, TRANSFORM_FS, NULL_FNS},
-    {ENABLE_KKW(LOWMC_L3_OR_NULL), 48, 24, 570, 39, 64, 24, 24, 113, 30, 83, 0, 0,
-     PICNIC_SIGNATURE_SIZE_Picnic2_L3_FS, Picnic2_L3_FS, TRANSFORM_FS, NULL_FNS},
-    {ENABLE_KKW(LOWMC_L5_OR_NULL), 64, 32, 803, 50, 64, 32, 32, 143, 30, 110, 0, 0,
-     PICNIC_SIGNATURE_SIZE_Picnic2_L5_FS, Picnic2_L5_FS, TRANSFORM_FS, NULL_FNS},
-    // Picnic with LowMC with m=1
-    {ENABLE_ZKBPP(LOWMC_L1_1_OR_NULL), 32, 16, 219, 219, 3, 16, 16, 69, 3, 55, 0, 0,
-     PICNIC_SIGNATURE_SIZE_Picnic_L1_1_FS, Picnic_L1_1_FS, TRANSFORM_FS, NULL_FNS},
-    {ENABLE_ZKBPP(LOWMC_L1_1_OR_NULL), 32, 16, 219, 219, 3, 16, 16, 69, 3, 55, 87, 103,
-     PICNIC_SIGNATURE_SIZE_Picnic_L1_1_UR, Picnic_L1_1_UR, TRANSFORM_UR, NULL_FNS},
-    {ENABLE_ZKBPP(LOWMC_L3_1_OR_NULL), 48, 24, 329, 329, 3, 24, 24, 107, 3, 83, 0, 0,
-     PICNIC_SIGNATURE_SIZE_Picnic_L3_1_FS, Picnic_L3_1_FS, TRANSFORM_FS, NULL_FNS},
-    {ENABLE_ZKBPP(LOWMC_L3_1_OR_NULL), 48, 24, 329, 329, 3, 24, 24, 107, 3, 83, 131, 155,
-     PICNIC_SIGNATURE_SIZE_Picnic_L3_1_UR, Picnic_L3_1_UR, TRANSFORM_UR, NULL_FNS},
-    {ENABLE_ZKBPP(LOWMC_L5_1_OR_NULL), 64, 32, 438, 438, 3, 32, 32, 137, 3, 110, 0, 0,
-     PICNIC_SIGNATURE_SIZE_Picnic_L5_1_FS, Picnic_L5_1_FS, TRANSFORM_FS, NULL_FNS},
-    {ENABLE_ZKBPP(LOWMC_L5_1_OR_NULL), 64, 32, 438, 438, 3, 32, 32, 137, 3, 110, 169, 201,
-     PICNIC_SIGNATURE_SIZE_Picnic_L5_1_UR, Picnic_L5_1_UR, TRANSFORM_UR, NULL_FNS}};
-static bool instance_initialized[PARAMETER_SET_MAX_INDEX];
-
-static bool create_instance(picnic_instance_t* pp) {
-  if (!pp->lowmc) {
-    return false;
-  }
-
-  pp->impls.lowmc                 = lowmc_get_implementation(pp->lowmc);
-  pp->impls.lowmc_store           = lowmc_store_get_implementation(pp->lowmc);
-  pp->impls.zkbpp_lowmc           = get_zkbpp_lowmc_implementation(pp->lowmc);
-  pp->impls.zkbpp_lowmc_verify    = get_zkbpp_lowmc_verify_implementation(pp->lowmc);
-  pp->impls.mzd_share             = get_zkbpp_share_implentation(pp->lowmc);
-
-  return true;
-}
+static const picnic_instance_t instances[] = {
+    /* ZKB++ with partial LowMC instances */
+    PARAMETER_SET_ZKBPP(lowmc_parameters_128_128_20, 32, 16, 219, 16, 75),
+    PARAMETER_SET_ZKBPP(lowmc_parameters_192_192_30, 48, 24, 329, 24, 113),
+    PARAMETER_SET_ZKBPP(lowmc_parameters_256_256_38, 64, 32, 438, 32, 143),
+    /* KKW with full LowMC instances */
+    PARAMETER_SET_KKW(lowmc_parameters_129_129_4, 32, 16, 250, 36, 16, 17, 65),
+    PARAMETER_SET_KKW(lowmc_parameters_192_192_4, 48, 24, 419, 52, 16, 24, 96),
+    PARAMETER_SET_KKW(lowmc_parameters_255_255_4, 64, 32, 601, 68, 16, 32, 128),
+    /* ZKB++ with full LowMC instances */
+    PARAMETER_SET_ZKBPP(lowmc_parameters_129_129_4, 32, 16, 219, 17, 65),
+    PARAMETER_SET_ZKBPP(lowmc_parameters_192_192_4, 48, 24, 329, 24, 96),
+    PARAMETER_SET_ZKBPP(lowmc_parameters_255_255_4, 64, 32, 438, 32, 128),
+};
 
 const picnic_instance_t* picnic_instance_get(picnic_params_t param) {
   if (param <= PARAMETER_SET_INVALID || param >= PARAMETER_SET_MAX_INDEX) {
     return NULL;
   }
 
-  if (!instance_initialized[param]) {
-    if (!create_instance(&instances[param])) {
-      return NULL;
-    }
-    instance_initialized[param] = true;
-  }
-
-  return &instances[param];
+  const picnic_instance_t* pp =
+      &instances[param <= Picnic_L5_UR ? (param - 1) / 2 : param - Picnic3_L1 + 3];
+  // check if the LowMC instance and ZKBPP/KKW are enabled
+  return pp->lowmc.n ? pp : NULL;
 }

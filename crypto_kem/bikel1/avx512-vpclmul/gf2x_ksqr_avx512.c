@@ -1,0 +1,1 @@
+../avx512/gf2x_ksqr_avx512.c

@@ -5,6 +5,7 @@
 
 #ifndef FFT_H
 #define FFT_H
+#define fft CRYPTO_NAMESPACE(fft)
 
 #include <stdint.h>
 

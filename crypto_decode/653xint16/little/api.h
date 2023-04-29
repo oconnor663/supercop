@@ -1,3 +1,1 @@
-#define CRYPTO_STRBYTES 1306
-#define CRYPTO_ITEMBYTES 2
-#define CRYPTO_ITEMS 653
+../ref/api.h

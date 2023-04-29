@@ -1,6 +1,13 @@
+#define update_asm CRYPTO_NAMESPACE(update_asm)
+#define _update_asm _CRYPTO_NAMESPACE(update_asm)
+#define vec_reduce_asm CRYPTO_NAMESPACE(vec_reduce_asm)
+#define _vec_reduce_asm _CRYPTO_NAMESPACE(vec_reduce_asm)
 /*
   This file is for the inversion-free Berlekamp-Massey algorithm
   see https://ieeexplore.ieee.org/document/87857
+
+  For the implementation strategy, see
+  https://eprint.iacr.org/2017/793.pdf
 */
 
 #include "bm.h"
@@ -70,7 +77,7 @@ static inline void interleave(vec128 *in, int idx0, int idx1, vec128 *mask, int 
 /* output: out, field elements in non-bitsliced form */
 static inline void get_coefs(gf *out, vec128 *in)
 {
-	int i, j, k;
+	int i, k;
 
 	vec128 mask[4][2];
 	vec128 buf[16];
@@ -124,9 +131,10 @@ static inline void get_coefs(gf *out, vec128 *in)
 	interleave(buf, 14, 15, mask[0], 0);
 
 	for (i = 0; i < 16; i++)
-	for (j = 0; j <  2; j++)
-	for (k = 0; k <  4; k++)
-		out[ (4*j + k)*16 + i ] = (vec128_extract(buf[i], j) >> (k*16)) & GFMASK;
+	for (k = 0; k <  4; k++) {
+		out[ (4*0 + k)*16 + i ] = (vec128_extract(buf[i], 0) >> (k*16)) & GFMASK;
+		out[ (4*1 + k)*16 + i ] = (vec128_extract(buf[i], 1) >> (k*16)) & GFMASK;
+	}
 }
 
 /* input: in, sequence of field elements */

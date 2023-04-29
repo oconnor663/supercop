@@ -1,8 +1,10 @@
+#include <stdlib.h> /* for abort() in case of OpenSSL failures */
 #include "params.h"
 
 #include "randombytes.h"
 #include "crypto_hash_sha512.h"
 #include "crypto_stream_aes256ctr.h"
+#include "crypto_stream_aes256ctr_publicinputs.h"
 #include "crypto_sort_uint32.h"
 
 #include "crypto_int8.h"
@@ -40,7 +42,7 @@ typedef int8 small;
 #define q12 ((q-1)/2)
 typedef int16 Fq;
 
-/* works for -14000000 < x < 14000000 if q in 4591, 4621, 5167 */
+/* works for -7000000 < x < 7000000 if q in 4591, 4621, 5167, 6343, 7177, 7879 */
 /* assumes twos complement; use, e.g., gcc -fwrapv */
 static Fq Fq_freeze(int32 x)
 {
@@ -118,25 +120,20 @@ static void Short_random(small *out)
   Short_fromlist(out,L);
 }
 
-/* ----- Inputs, Expand, Generator */
+/* ----- Inputs, Generator */
 
 typedef int8 Inputs[I]; /* passed by reference */
 
 static const unsigned char aes_nonce[16] = {0};
 
-static void Expand(uint32 *L,const unsigned char *k)
-{
-  crypto_stream_aes256ctr((unsigned char *) L,4*p,aes_nonce,k);
-  crypto_decode_pxint32(L,(unsigned char *) L);
-}
-
-/* G = Generator(k) */
-static void Generator(Fq *G,const unsigned char *k)
+/* G = Generator(pk) */
+static void Generator(Fq *G,const unsigned char *pk)
 {
   uint32 L[p];
   int i;
 
-  Expand(L,k);
+  if (crypto_stream_aes256ctr_publicinputs((unsigned char *) L,4*p,aes_nonce,pk) != 0) abort();
+  crypto_decode_pxint32(L,(unsigned char *) L);
   for (i = 0;i < p;++i) G[i] = Fq_bigfreeze(L[i])-q12;
 }
 
@@ -164,7 +161,8 @@ static void Hide(unsigned char *c,unsigned char *r_enc,const Inputs r,const unsi
       s[0] = 5;
       Hash(h,s,sizeof s);
     }
-    Expand(L,h);
+    if (crypto_stream_aes256ctr((unsigned char *) L,4*p,aes_nonce,h) != 0) abort();
+    crypto_decode_pxint32(L,(unsigned char *) L);
     Short_fromlist(b,L);
   }
   {

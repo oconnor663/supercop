@@ -1,1 +1,0 @@
-../../dilithium3/ref/ntt.h

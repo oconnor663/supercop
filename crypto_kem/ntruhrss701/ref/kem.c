@@ -1,10 +1,11 @@
-#include "crypto_kem.h"
-#include "randombytes.h"
+#include "api.h"
+#include "cmov.h"
 #include "crypto_hash_sha3256.h"
-#include "params.h"
-#include "verify.h"
-#include "sample.h"
+#include "kem.h"
 #include "owcpa.h"
+#include "params.h"
+#include "randombytes.h"
+#include "sample.h"
 
 // API FUNCTIONS 
 int crypto_kem_keypair(unsigned char *pk, unsigned char *sk)
@@ -45,12 +46,7 @@ int crypto_kem_dec(unsigned char *k, const unsigned char *c, const unsigned char
   unsigned char rm[NTRU_OWCPA_MSGBYTES];
   unsigned char buf[NTRU_PRFKEYBYTES+NTRU_CIPHERTEXTBYTES];
 
-  fail = 0;
-
-  /* Check that unused bits of last byte of ciphertext are zero */
-  fail |= c[NTRU_CIPHERTEXTBYTES-1] & (0xff << (8 - (7 & (NTRU_LOGQ*NTRU_PACK_DEG))));
-
-  fail |= owcpa_dec(rm, c, sk);
+  fail = owcpa_dec(rm, c, sk);
   /* If fail = 0 then c = Enc(h, rm). There is no need to re-encapsulate. */
   /* See comment in owcpa_dec for details.                                */
 
@@ -63,7 +59,7 @@ int crypto_kem_dec(unsigned char *k, const unsigned char *c, const unsigned char
     buf[NTRU_PRFKEYBYTES + i] = c[i];
   crypto_hash_sha3256(rm, buf, NTRU_PRFKEYBYTES+NTRU_CIPHERTEXTBYTES);
 
-  cmov(k, rm, NTRU_SHAREDKEYBYTES, fail);
+  cmov(k, rm, NTRU_SHAREDKEYBYTES, (unsigned char) fail);
 
   return 0;
 }

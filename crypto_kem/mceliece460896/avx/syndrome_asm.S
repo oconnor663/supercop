@@ -1,3 +1,5 @@
+#define syndrome_asm CRYPTO_NAMESPACE(syndrome_asm)
+#define _syndrome_asm _CRYPTO_NAMESPACE(syndrome_asm)
 
 # qhasm: int64 input_0
 

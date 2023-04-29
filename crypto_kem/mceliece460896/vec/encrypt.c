@@ -6,6 +6,7 @@
 
 #include "util.h"
 #include "params.h"
+#include "uint16_sort.h"
 #include "randombytes.h"
 
 #include <stdint.h>
@@ -14,14 +15,36 @@
 #include <string.h>
 
 #include "gf.h"
+#include "crypto_declassify.h"
+#include "crypto_uint16.h"
+#include "crypto_uint32.h"
+
+static inline crypto_uint16 uint16_is_smaller_declassify(uint16_t t,uint16_t u)
+{
+  crypto_uint16 mask = crypto_uint16_smaller_mask(t,u);
+  crypto_declassify(&mask,sizeof mask);
+  return mask;
+}
+
+static inline crypto_uint32 uint32_is_equal_declassify(uint32_t t,uint32_t u)
+{
+  crypto_uint32 mask = crypto_uint32_equal_mask(t,u);
+  crypto_declassify(&mask,sizeof mask);
+  return mask;
+}
 
 /* output: e, an error vector of weight t */
 static void gen_e(unsigned char *e)
 {
 	int i, j, eq, count;
 
-	uint16_t ind[ SYS_T*2 ];
-	uint32_t ind32[ SYS_T*2 ];
+	union 
+	{
+		uint16_t nums[ SYS_T*2 ];
+		unsigned char bytes[ SYS_T*2 * sizeof(uint16_t) ];
+	} buf;
+
+	uint16_t ind[ SYS_T ];
 	uint64_t e_int[ (SYS_N+63)/64 ];	
 	uint64_t one = 1;	
 	uint64_t mask;	
@@ -29,26 +52,27 @@ static void gen_e(unsigned char *e)
 
 	while (1)
 	{
-		randombytes((unsigned char *) ind, sizeof(ind));
+		randombytes(buf.bytes, sizeof(buf));
 
 		for (i = 0; i < SYS_T*2; i++)
-			ind[i] &= GFMASK;
+			buf.nums[i] = load_gf(buf.bytes + i*2);
 
 		// moving and counting indices in the correct range
 
 		count = 0;
-		for (i = 0; i < SYS_T*2; i++)
-			if (ind[i] < SYS_N)
-				ind32[ count++ ] = ind[i];
+		for (i = 0; i < SYS_T*2 && count < SYS_T; i++)
+			if (uint16_is_smaller_declassify(buf.nums[i],SYS_N))
+				ind[ count++ ] = buf.nums[i];
 		
 		if (count < SYS_T) continue;
-	
+
 		// check for repetition
 
+		uint16_sort(ind, SYS_T);
+		
 		eq = 0;
-
-		for (i = 1; i < SYS_T; i++) for (j = 0; j < i; j++)
-			if (ind32[i] == ind32[j]) 
+		for (i = 1; i < SYS_T; i++)
+			if (uint32_is_equal_declassify(ind[i-1],ind[i]))
 				eq = 1;
 
 		if (eq == 0)
@@ -56,7 +80,7 @@ static void gen_e(unsigned char *e)
 	}
 
 	for (j = 0; j < SYS_T; j++)
-		val[j] = one << (ind32[j] & 63);
+		val[j] = one << (ind[j] & 63);
 
 	for (i = 0; i < (SYS_N+63)/64; i++) 
 	{
@@ -64,7 +88,7 @@ static void gen_e(unsigned char *e)
 
 		for (j = 0; j < SYS_T; j++)
 		{
-			mask = i ^ (ind32[j] >> 6);
+			mask = i ^ (ind[j] >> 6);
 			mask -= 1;
 			mask >>= 63;
 			mask = -mask;
@@ -79,7 +103,7 @@ static void gen_e(unsigned char *e)
 
 /* input: public key pk, error vector e */
 /* output: syndrome s */
-void syndrome(unsigned char *s, const unsigned char *pk, unsigned char *e)
+static void syndrome(unsigned char *s, const unsigned char *pk, unsigned char *e)
 {
 	uint64_t b;
 

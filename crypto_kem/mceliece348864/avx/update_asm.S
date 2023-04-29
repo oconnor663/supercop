@@ -1,3 +1,5 @@
+#define update_asm CRYPTO_NAMESPACE(update_asm)
+#define _update_asm _CRYPTO_NAMESPACE(update_asm)
 
 # qhasm: int64 input_0
 

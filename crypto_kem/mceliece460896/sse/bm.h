@@ -5,6 +5,7 @@
 
 #ifndef BM_H
 #define BM_H
+#define bm CRYPTO_NAMESPACE(bm)
 
 #include "params.h"
 #include "vec128.h"
