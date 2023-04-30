@@ -55,6 +55,10 @@ def main():
             shutil.copy(filepath, tempdir)
             if filepath.suffix in (".c", ".S"):
                 c_files.append(filepath.name)
+    # Here we include -march=native, like the actual SUPERCOP benchmarks do.
+    # That means the "wider implementations on this platform" error case in
+    # blake3_static_dispatch.h can trigger and fail this build. Note that
+    # test.py doesn't include -march=native.
     cmd = ["gcc", "-O3", "-march=native", "-o", "blake3.exe", "main.c"]
     cmd += c_files
     print(" ".join(cmd))
