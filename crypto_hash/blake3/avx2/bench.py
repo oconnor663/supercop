@@ -29,7 +29,7 @@ int main() {
   assert(input != NULL);
   memset(input, 42, input_len);
 
-  // Time how long it takes to hash it, three times.
+  // Time how long it takes to hash it, ten times.
   for (size_t i = 0; i < 10; i++) {
     uint8_t output[BLAKE3_OUT_LEN];
     uint64_t start_ns = time_ns();
