@@ -18,10 +18,4 @@ void blake3_hash_many_neon(const uint8_t *const *inputs, size_t num_inputs,
                            uint8_t flags, uint8_t flags_start,
                            uint8_t flags_end, uint8_t *out);
 
-// Normally the NEON build requires setting BLAKE3_USE_NEON=1. Since we're not
-// going to set that here, explicitly override the max SIMD degree. This works
-// because this header gets included last.
-#define MAX_SIMD_DEGREE 4
-#define MAX_SIMD_DEGREE_OR_2 4
-
 #endif // BLAKE_STATIC_DISPATCH_H
